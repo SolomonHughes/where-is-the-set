@@ -16,10 +16,10 @@ body {
   font-family: Arial, sans-serif;
   text-align: center;
   margin: 0;
-  padding: 30px 20px;
+  padding: 30px 15px;
 }
 .container {
-  max-width: 900px;
+  max-width: 1000px;
   margin: auto;
 }
 h1 {
@@ -36,7 +36,7 @@ iframe {
   border-radius: 12px;
 }
 #map {
-  height: 380px;
+  height: 480px;
   width: 100%;
   border-radius: 12px;
   margin: 20px 0;
@@ -56,8 +56,24 @@ button:disabled {
   cursor: default;
 }
 #result {
-  margin: 20px 0;
-  font-size: 18px;
+  margin: 25px 0;
+  font-size: 20px;
+  line-height: 1.6;
+}
+.city-label {
+  background: #222;
+  color: white;
+  border: 1px solid #777;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 11px;
+}
+a {
+  color: #e5c48b;
+}
+#score {
+  color: #e5c48b;
+  font-weight: bold;
 }
 </style>
 </head>
@@ -66,20 +82,24 @@ button:disabled {
 <div class="container">
 
 <h1>WHERE IS THIS SET?</h1>
-<p>Listen. Look around. Guess the location.</p>
+<p>Listen. Look around. Guess the city.</p>
+
 <p>ROUND 1 OF 5</p>
+<p id="score">SCORE: 0</p>
 
 <iframe
-  src="https://www.youtube.com/embed/NLwaKLjJ5V0"
-  title="Mystery DJ Set"
-  allow="autoplay; encrypted-media; picture-in-picture"
-  allowfullscreen>
+src="https://www.youtube.com/embed/NLwaKLjJ5V0"
+title="Mystery DJ Set"
+allow="autoplay; encrypted-media; picture-in-picture"
+allowfullscreen>
 </iframe>
 
-<h2>Where in the world are we?</h2>
-<p>Zoom in and drop a pin on your guess.</p>
+<h2>Which city are we in?</h2>
+<p>Choose one of the ten cities on the map. Zoom in if needed.</p>
 
 <div id="map"></div>
+
+<p id="selection">No city selected</p>
 
 <button id="guessButton" disabled>
 LOCK IN YOUR GUESS
@@ -90,53 +110,129 @@ LOCK IN YOUR GUESS
 </div>
 
 <script>
-const map = L.map('map', {
-  minZoom: 2,
-  maxZoom: 19
-}).setView([20, 0], 2);
+const cities = [
+  {name:"Vancouver", lat:49.2827, lng:-123.1207},
+  {name:"Seattle", lat:47.6062, lng:-122.3321},
+  {name:"London", lat:51.5074, lng:-0.1278},
+  {name:"Berlin", lat:52.5200, lng:13.4050},
+  {name:"Tokyo", lat:35.6762, lng:139.6503},
+  {name:"Seoul", lat:37.5665, lng:126.9780},
+  {name:"Melbourne", lat:-37.8136, lng:144.9631},
+  {name:"Cape Town", lat:-33.9249, lng:18.4241},
+  {name:"Mexico City", lat:19.4326, lng:-99.1332},
+  {name:"São Paulo", lat:-23.5505, lng:-46.6333}
+];
+
+const correctCity = "Vancouver";
+
+const map = L.map("map", {
+  minZoom: 1,
+  maxZoom: 18
+}).setView([15, 10], 2);
 
 L.tileLayer(
-  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
   {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19
   }
 ).addTo(map);
 
-let marker;
-let guess;
+let selected = null;
 let locked = false;
+const markers = {};
 
-const button = document.getElementById('guessButton');
-const result = document.getElementById('result');
+const button = document.getElementById("guessButton");
+const selection = document.getElementById("selection");
+const result = document.getElementById("result");
 
-map.on('click', function(e) {
-  if (locked) return;
+cities.forEach(city => {
 
-  guess = e.latlng.wrap();
+  const marker = L.circleMarker(
+    [city.lat, city.lng],
+    {
+      radius: 9,
+      color: "#ffffff",
+      weight: 2,
+      fillColor: "#3498db",
+      fillOpacity: 1
+    }
+  ).addTo(map);
 
-  if (marker) {
-    marker.setLatLng(guess);
-  } else {
-    marker = L.marker(guess).addTo(map);
-  }
+  marker.bindTooltip(city.name, {
+    permanent: true,
+    direction: city.name === "Vancouver" ? "left" : "right",
+    className: "city-label"
+  });
 
-  button.disabled = false;
-  result.textContent = 'Location selected. Ready to lock in?';
+  markers[city.name] = marker;
+
+  marker.on("click", () => {
+
+    if (locked) return;
+
+    Object.values(markers).forEach(m => {
+      m.setStyle({
+        fillColor: "#3498db",
+        radius: 9
+      });
+    });
+
+    selected = city.name;
+
+    marker.setStyle({
+      fillColor: "#e5c48b",
+      radius: 12
+    });
+
+    marker.bringToFront();
+
+    selection.textContent =
+      "Your guess: " + selected;
+
+    button.disabled = false;
+
+  });
+
 });
 
-button.addEventListener('click', function() {
-  if (!guess || locked) return;
+button.addEventListener("click", () => {
+
+  if (!selected || locked) return;
 
   locked = true;
   button.disabled = true;
-  button.textContent = 'GUESS LOCKED';
+  button.textContent = "GUESS LOCKED";
 
-  result.textContent =
-    'Guess recorded: ' +
-    guess.lat.toFixed(3) + ', ' +
-    guess.lng.toFixed(3) +
-    '. Location reveal coming soon.';
+  const correct = selected === correctCity;
+
+  if (!correct) {
+    markers[selected].setStyle({
+      fillColor: "#e74c3c"
+    });
+  }
+
+  markers[correctCity].setStyle({
+    fillColor: "#2ecc71",
+    radius: 13
+  });
+
+  markers[correctCity].bringToFront();
+
+  document.getElementById("score").textContent =
+    "SCORE: " + (correct ? 1 : 0);
+
+  result.innerHTML =
+    "<h2>" +
+    (correct ? "CORRECT!" : "NOT QUITE!") +
+    "</h2>" +
+    "<strong>Vancouver, Canada</strong><br>" +
+    "Venue: Slo Coffee<br>" +
+    "DJ: JLiu<br><br>" +
+    '<a href="https://www.youtube.com/watch?v=NLwaKLjJ5V0" target="_blank" rel="noopener noreferrer">Watch the full DJ set</a>';
+
+  map.setView([49.2827, -123.1207], 10);
+
 });
 </script>
 
