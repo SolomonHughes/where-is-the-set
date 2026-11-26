@@ -6,6 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Where Is This Set?</title>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
 body {
   background: #141414;
@@ -15,13 +18,16 @@ body {
   margin: 0;
   padding: 30px 20px;
 }
+.container {
+  max-width: 900px;
+  margin: auto;
+}
 h1 {
   font-size: 36px;
   letter-spacing: 3px;
 }
-.container {
-  max-width: 900px;
-  margin: auto;
+p {
+  color: #bdbdbd;
 }
 iframe {
   width: 100%;
@@ -29,8 +35,29 @@ iframe {
   border: 0;
   border-radius: 12px;
 }
-p {
-  color: #bdbdbd;
+#map {
+  height: 380px;
+  width: 100%;
+  border-radius: 12px;
+  margin: 20px 0;
+}
+button {
+  background: #e5c48b;
+  color: #141414;
+  padding: 16px 30px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+#result {
+  margin: 20px 0;
+  font-size: 18px;
 }
 </style>
 </head>
@@ -40,7 +67,6 @@ p {
 
 <h1>WHERE IS THIS SET?</h1>
 <p>Listen. Look around. Guess the location.</p>
-
 <p>ROUND 1 OF 5</p>
 
 <iframe
@@ -51,8 +77,68 @@ p {
 </iframe>
 
 <h2>Where in the world are we?</h2>
-<p>Interactive map coming next.</p>
+<p>Zoom in and drop a pin on your guess.</p>
+
+<div id="map"></div>
+
+<button id="guessButton" disabled>
+LOCK IN YOUR GUESS
+</button>
+
+<div id="result" aria-live="polite"></div>
 
 </div>
+
+<script>
+const map = L.map('map', {
+  minZoom: 2,
+  maxZoom: 19
+}).setView([20, 0], 2);
+
+L.tileLayer(
+  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }
+).addTo(map);
+
+let marker;
+let guess;
+let locked = false;
+
+const button = document.getElementById('guessButton');
+const result = document.getElementById('result');
+
+map.on('click', function(e) {
+  if (locked) return;
+
+  guess = e.latlng.wrap();
+
+  if (marker) {
+    marker.setLatLng(guess);
+  } else {
+    marker = L.marker(guess).addTo(map);
+  }
+
+  button.disabled = false;
+  result.textContent = 'Location selected. Ready to lock in?';
+});
+
+button.addEventListener('click', function() {
+  if (!guess || locked) return;
+
+  locked = true;
+  button.disabled = true;
+  button.textContent = 'GUESS LOCKED';
+
+  result.textContent =
+    'Guess recorded: ' +
+    guess.lat.toFixed(3) + ', ' +
+    guess.lng.toFixed(3) +
+    '. Location reveal coming soon.';
+});
+</script>
+
 </body>
 </html>
